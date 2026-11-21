@@ -196,6 +196,7 @@
     .del:hover { color: #a02a2a; }
     #empty { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
     .path { margin: 12px 0 0; word-break: break-all; }
+    .copy { margin-top: 12px; }
     summary { color: var(--muted); }
     .settings button { margin-top: 14px; padding: 10px 16px; color: var(--ink); background: #faf5e6; border: 1px solid var(--line); border-radius: 999px; }
     .tabs { margin-bottom: 22px; }
@@ -261,6 +262,7 @@
       <ul id="log"></ul>
       <p id="empty">Nothing logged yet.</p>
       <p class="path" id="note-path"></p>
+      <button type="button" class="ghost copy hidden" id="copy-note">Copy for Obsidian</button>
     </section>
     <details class="settings">
       <summary>Vault</summary>
@@ -494,7 +496,98 @@
       start();
     }
 
+    let localMode = false;
+    const LS_KEY = "focuslog:v1";
+    function lsRead() {
+      try {
+        const data = JSON.parse(localStorage.getItem(LS_KEY) || "[]");
+        return Array.isArray(data) ? data : [];
+      } catch (error) { return []; }
+    }
+    function lsWrite(list) {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+      catch (error) { throw new Error("Could not save on this device"); }
+    }
+    function pad2(n) { return String(n).padStart(2, "0"); }
+    function dayKey(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+    function lineOf(e) {
+      let text = e.time + " \u00b7 " + (e.mode === "focus" ? "Focus" : "Break") + " \u00b7 " + e.minutes + " min";
+      if (e.label) text += " \u00b7 " + e.label;
+      return text;
+    }
+    function localToday() {
+      const day = dayKey(new Date());
+      return {
+        date: day,
+        notePath: "Saved on this device",
+        lines: lsRead().filter((e) => e.date === day).map(lineOf),
+      };
+    }
+    function localLog(body) {
+      if (body.mode !== "focus" && body.mode !== "break") throw new Error("Mode must be focus or break");
+      const minutes = parseInt(body.minutes, 10);
+      if (!(minutes >= 1 && minutes <= 180)) throw new Error("Minutes must be between 1 and 180");
+      const now = new Date();
+      const entry = {
+        date: dayKey(now),
+        time: pad2(now.getHours()) + ":" + pad2(now.getMinutes()),
+        mode: body.mode,
+        minutes,
+        label: String(body.label || "").replace(/\s+/g, " ").trim().slice(0, 160),
+      };
+      const all = lsRead();
+      all.push(entry);
+      lsWrite(all);
+      return { ...localToday(), ok: true, line: lineOf(entry) };
+    }
+    function localDelete(body) {
+      const index = parseInt(body.index, 10);
+      const all = lsRead();
+      const day = dayKey(new Date());
+      let n = -1;
+      for (let i = 0; i < all.length; i++) {
+        if (all[i].date !== day) continue;
+        n += 1;
+        if (n === index) {
+          all.splice(i, 1);
+          lsWrite(all);
+          return { ...localToday(), ok: true };
+        }
+      }
+      throw new Error("Entry not found");
+    }
+    function localStats() {
+      const focus = lsRead().filter((e) => e.mode === "focus");
+      const byDay = {};
+      for (const e of focus) byDay[e.date] = (byDay[e.date] || 0) + e.minutes;
+      const now = new Date();
+      const today = dayKey(now);
+      const weekStart = dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6));
+      const days = Object.keys(byDay).sort().reverse().map((d) => ({ date: d, focusMin: byDay[d] }));
+      return {
+        todayMin: byDay[today] || 0,
+        weekMin: days.filter((d) => d.date >= weekStart).reduce((a, d) => a + d.focusMin, 0),
+        totalMin: focus.reduce((a, e) => a + e.minutes, 0),
+        sessions: focus.length,
+        dayCount: days.length,
+        days: days.slice(0, 60),
+      };
+    }
+    async function localPost(url, body) {
+      if (url === "/api/sessions") return localLog(body);
+      if (url === "/api/sessions/delete") return localDelete(body);
+      throw new Error("The vault needs the PC server (python server.py)");
+    }
+    function enterLocal() {
+      localMode = true;
+      showToday(localToday());
+      document.querySelector(".settings").classList.add("hidden");
+      $("copy-note").classList.remove("hidden");
+      setStatus("");
+    }
+
     async function post(url, body) {
+      if (localMode) return localPost(url, body);
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -595,7 +688,7 @@
           showToday(todayData);
         }
       } catch (error) {
-        setStatus("The timer server is not responding.", true);
+        enterLocal();
       }
       render();
     }
@@ -608,9 +701,14 @@
     }
     async function loadStats() {
       try {
-        const response = await fetch("/api/stats");
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Could not load stats");
+        let data;
+        if (localMode) {
+          data = localStats();
+        } else {
+          const response = await fetch("/api/stats");
+          data = await response.json();
+          if (!response.ok) throw new Error(data.error || "Could not load stats");
+        }
         $("st-all").textContent = fmtDur(data.totalMin);
         $("st-sub").textContent = data.sessions + " sessions on " + data.dayCount + " days";
         $("st-today").textContent = fmtDur(data.todayMin);
@@ -648,6 +746,16 @@
       try { history.replaceState(null, "", stats ? "#stats" : "#timer"); } catch (error) {}
       if (stats) loadStats();
     }
+    $("copy-note").addEventListener("click", async () => {
+      const data = localToday();
+      const text = "# " + data.date + "\n\n## Focus log\n" + data.lines.map((l) => "- " + l).join("\n") + "\n";
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("Copied. Paste it into today's note in Obsidian.");
+      } catch (error) {
+        prompt("Copy this text:", text);
+      }
+    });
     $("tab-timer").addEventListener("click", () => showPage("timer"));
     $("tab-stats").addEventListener("click", () => showPage("stats"));
     if (location.hash === "#stats") showPage("stats");
