@@ -16,6 +16,14 @@ MODES = {"focus": "Focus", "break": "Break"}
 SECTION = "## Focus log"
 ENTRY = re.compile(r"^- \d{2}:\d{2} \u00b7 ")
 DETAIL = re.compile(r"^- \d{2}:\d{2} \u00b7 (Focus|Break) \u00b7 (\d+) min")
+STATIC = {
+    "/logo.png": "image/png",
+    "/apple-touch-icon.png": "image/png",
+    "/icon-192.png": "image/png",
+    "/icon-512.png": "image/png",
+    "/favicon-32.png": "image/png",
+    "/manifest.webmanifest": "application/manifest+json",
+}
 NOTE_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}\.md$")
 
 
@@ -178,6 +186,9 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if path == "/api/stats":
                 self.respond(stats_payload())
+                return
+            if path in STATIC:
+                self.serve(PUBLIC / path.lstrip("/"), STATIC[path])
                 return
             if path in ("/", "/index.html"):
                 self.serve(PUBLIC / "index.html", "text/html; charset=utf-8")

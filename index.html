@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Focus log</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#ede3c8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Focus log">
   <style>
     :root {
       --ink: #4a1a26;
@@ -27,8 +33,10 @@
       margin: 0 auto;
       padding: 48px 0 64px;
     }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .brand img { width: 44px; height: 44px; border-radius: 12px; box-shadow: 0 2px 8px rgba(74, 26, 38, 0.18); }
     .eyebrow {
-      margin: 0 0 6px;
+      margin: 0;
       color: var(--accent);
       font-size: 12px;
       font-weight: 650;
@@ -223,7 +231,10 @@
 </head>
 <body>
   <main>
-    <p class="eyebrow">Focus log</p>
+    <div class="brand">
+      <img src="logo.png" alt="" width="44" height="44">
+      <p class="eyebrow">Focus log</p>
+    </div>
     <div class="modes tabs" role="tablist">
       <button type="button" id="tab-timer" role="tab" aria-selected="true">Timer</button>
       <button type="button" id="tab-stats" role="tab" aria-selected="false">Time worked</button>

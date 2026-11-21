@@ -26,6 +26,12 @@ Open the **Vault** section at the bottom of the page, enter the path to your Obs
 
 ## Notes
 
-- GitHub only stores the code. The app needs `server.py` running on your PC, because it writes into your vault,
-  so it cannot run on GitHub Pages.
+- **GitHub Pages / phone without the PC:** the page detects that there is no server and saves entries on the device
+  (browser storage). The vault section is hidden, and the "Copy for Obsidian" button copies today's log as text.
+  Stats work in this mode too. Entries stay in that one browser on that one phone.
+- **With `python server.py`:** entries are written into the Obsidian vault on the PC instead.
 - Anyone on the same Wi-Fi can open the page while the server runs. Use a network you trust.
+
+## Add to the phone's home screen
+
+Open the page on the phone, then Share -> Add to Home Screen (iPhone) or the browser menu -> Install app (Android). The app icon is `apple-touch-icon.png` / `icon-*.png`.
