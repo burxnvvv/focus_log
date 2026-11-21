@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Focus log</title>
+  <style>
+    :root {
+      --ink: #4a1a26;
+      --muted: #8a6a66;
+      --line: #d6c8a4;
+      --card: #f4ecd5;
+      --bg: #ede3c8;
+      --accent: #5e2230;
+      --accent-soft: #e2d3b2;
+      --shadow: 0 8px 30px rgba(74, 26, 38, 0.10);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font: 16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(520px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 48px 0 64px;
+    }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0 0 22px;
+      font: 800 38px/1.05 "Bahnschrift", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+      letter-spacing: -0.01em;
+      text-transform: uppercase;
+    }
+    h2 { margin: 0; font-size: 18px; font-weight: 650; }
+    .card, .today, .settings {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+    .card { padding: 22px 22px 20px; }
+    .modes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 4px;
+      background: #e0d3b3;
+      border-radius: 999px;
+    }
+    .modes button, .presets button, .ghost, .primary, summary, .settings button {
+      font: inherit;
+      cursor: pointer;
+    }
+    .modes button {
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: var(--muted);
+      background: transparent;
+    }
+    .modes button[aria-selected="true"] {
+      color: var(--accent);
+      background: var(--card);
+      box-shadow: 0 1px 2px rgba(74, 26, 38, 0.15);
+    }
+    .task, .custom, .settings label {
+      display: block;
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    input {
+      width: 100%;
+      margin-top: 6px;
+      padding: 12px 14px;
+      color: var(--ink);
+      background: #faf5e6;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      font: inherit;
+    }
+    input:focus {
+      outline: 2px solid var(--accent);
+      border-color: var(--accent);
+    }
+    .dial {
+      width: 232px;
+      height: 232px;
+      margin: 22px auto 8px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: conic-gradient(var(--accent) calc(var(--p) * 1%), #dccfaf 0);
+    }
+    .dial-inner {
+      width: 196px;
+      height: 196px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--card);
+    }
+    .clock {
+      margin: 0;
+      font: 800 64px/1 "Bahnschrift", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.04em;
+    }
+    .presets {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+    .presets button {
+      min-width: 64px;
+      padding: 8px 12px;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+    }
+    .presets button[aria-pressed="true"] {
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-color: transparent;
+    }
+    .custom { max-width: 140px; margin-inline: auto; }
+    .hidden { display: none; }
+    .actions {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 18px;
+    }
+    .primary, .ghost {
+      padding: 12px 20px;
+      border-radius: 999px;
+    }
+    .primary {
+      color: #f4ecd5;
+      background: var(--accent);
+      border: 0;
+    }
+    .ghost {
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid var(--line);
+    }
+    button:disabled { opacity: 0.45; cursor: default; }
+    .status {
+      min-height: 1.3em;
+      margin: 14px 0 0;
+      color: var(--muted);
+      text-align: center;
+      font-size: 14px;
+    }
+    .status.error { color: #a02a2a; }
+    .today, .settings { margin-top: 16px; padding: 18px 20px 16px; }
+    .today-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+    }
+    #today-date, .path, .settings p { color: var(--muted); font-size: 13px; }
+    ul { margin: 12px 0 0; padding: 0; list-style: none; }
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .del {
+      flex: none;
+      min-width: 40px;
+      min-height: 36px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .del:hover { color: #a02a2a; }
+    #empty { margin: 12px 0 0; color: var(--muted); font-size: 14px; }
+    .path { margin: 12px 0 0; word-break: break-all; }
+    summary { color: var(--muted); }
+    .settings button { margin-top: 14px; padding: 10px 16px; color: var(--ink); background: #faf5e6; border: 1px solid var(--line); border-radius: 999px; }
+    .tabs { margin-bottom: 22px; }
+    .total { padding: 22px 22px 20px; background: var(--accent); color: #f4ecd5; border-radius: 22px; box-shadow: var(--shadow); }
+    .total p { margin: 0; }
+    .total-label { font-size: 13px; opacity: 0.8; }
+    .total-value { margin-top: 6px !important; font: 800 52px/1 "Bahnschrift", "Arial Narrow", "Roboto Condensed", Impact, sans-serif; font-variant-numeric: tabular-nums; }
+    .total-sub { margin-top: 10px !important; font-size: 14px; opacity: 0.85; }
+    .mini { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    .mini div { padding: 14px 16px; background: var(--card); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+    .mini span { display: block; color: var(--muted); font-size: 13px; }
+    .mini b { display: block; margin-top: 4px; font-size: 20px; }
+    #days li { display: grid; grid-template-columns: 92px 1fr auto; }
+    .bar { height: 6px; border-radius: 99px; background: var(--accent-soft); overflow: hidden; }
+    .bar i { display: block; height: 100%; background: var(--accent); }
+    .dur { font-variant-numeric: tabular-nums; }
+    @media (max-width: 420px) {
+      main { padding-top: 28px; }
+      .dial { width: 200px; height: 200px; }
+      .dial-inner { width: 168px; height: 168px; }
+      .clock { font-size: 54px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Focus log</p>
+    <div class="modes tabs" role="tablist">
+      <button type="button" id="tab-timer" role="tab" aria-selected="true">Timer</button>
+      <button type="button" id="tab-stats" role="tab" aria-selected="false">Time worked</button>
+    </div>
+    <div id="page-timer">
+    <h1 id="headline">Stay with one thing.</h1>
+    <section class="card" id="card" data-mode="focus">
+      <div class="modes" role="tablist">
+        <button type="button" id="mode-focus" role="tab" aria-selected="true">Focus</button>
+        <button type="button" id="mode-break" role="tab" aria-selected="false">Break</button>
+      </div>
+      <label class="task">Task
+        <input id="label" maxlength="160" placeholder="What are you working on?">
+      </label>
+      <div class="dial" id="dial" style="--p: 100">
+        <div class="dial-inner">
+          <p class="clock" id="clock" aria-live="polite">25:00</p>
+        </div>
+      </div>
+      <div class="presets" id="presets"></div>
+      <label class="custom hidden" id="custom-wrap">Minutes
+        <input id="custom" type="number" min="1" max="180" value="25">
+      </label>
+      <div class="actions">
+        <button type="button" class="primary" id="primary">Start</button>
+        <button type="button" class="ghost hidden" id="finish">Finish and log</button>
+        <button type="button" class="ghost hidden" id="reset">Reset</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+    </section>
+    <section class="today">
+      <div class="today-head">
+        <h2>Today</h2>
+        <span id="today-date"></span>
+      </div>
+      <ul id="log"></ul>
+      <p id="empty">Nothing logged yet.</p>
+      <p class="path" id="note-path"></p>
+    </section>
+    <details class="settings">
+      <summary>Vault</summary>
+      <label>Obsidian vault
+        <input id="vault">
+      </label>
+      <label>Subfolder
+        <input id="folder" placeholder="Leave empty for the vault root">
+      </label>
+      <button type="button" id="save-config">Save</button>
+      <p id="config-status"></p>
+    </details>
+    </div>
+    <div id="page-stats" class="hidden">
+      <h1>Time worked</h1>
+      <section class="total">
+        <p class="total-label">All time</p>
+        <p class="total-value" id="st-all">0 min</p>
+        <p class="total-sub" id="st-sub"></p>
+      </section>
+      <div class="mini">
+        <div><span>Today</span><b id="st-today">0 min</b></div>
+        <div><span>Last 7 days</span><b id="st-week">0 min</b></div>
+      </div>
+      <section class="today">
+        <div class="today-head"><h2>By day</h2><span id="days-note">Focus only</span></div>
+        <ul id="days"></ul>
+        <p id="days-empty">No focus sessions yet.</p>
+      </section>
+    </div>
+  </main>
+  <script>
+    const PRESETS = { focus: [25, 50], break: [5, 10] };
+    const $ = (id) => document.getElementById(id);
+    const state = {
+      mode: "focus",
+      phase: "idle",
+      focusMin: 25,
+      breakMin: 5,
+      plannedMin: 25,
+      useCustom: false,
+      remainingMs: 25 * 60 * 1000,
+      endsAt: null,
+      timer: null,
+      logging: false,
+    };
+
+    function minutesForMode() {
+      return state.mode === "focus" ? state.focusMin : state.breakMin;
+    }
+    function format(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000));
+      const minutes = Math.floor(total / 60);
+      const seconds = total % 60;
+      return String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+    }
+    function setStatus(message, isError) {
+      const node = $("status");
+      node.textContent = message || "";
+      node.classList.toggle("error", Boolean(isError));
+    }
+    function headline() {
+      if (state.phase === "running") return state.mode === "focus" ? "In focus." : "On a break.";
+      if (state.phase === "paused") return "Paused.";
+      if (state.phase === "done") return state.mode === "focus" ? "Session logged." : "Break logged.";
+      return state.mode === "focus" ? "Stay with one thing." : "Take a break.";
+    }
+
+    function renderPresets() {
+      const box = $("presets");
+      box.replaceChildren();
+      const idle = state.phase === "idle";
+      for (const minutes of PRESETS[state.mode]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = minutes + " min";
+        button.disabled = !idle;
+        button.setAttribute("aria-pressed", String(!state.useCustom && minutesForMode() === minutes));
+        button.addEventListener("click", () => {
+          state.useCustom = false;
+          applyMinutes(minutes);
+        });
+        box.appendChild(button);
+      }
+      const custom = document.createElement("button");
+      custom.type = "button";
+      custom.textContent = "Custom";
+      custom.disabled = !idle;
+      custom.setAttribute("aria-pressed", String(state.useCustom));
+      custom.addEventListener("click", () => {
+        state.useCustom = true;
+        applyMinutes(Number($("custom").value) || minutesForMode());
+      });
+      box.appendChild(custom);
+    }
+
+    function render() {
+      const idle = state.phase === "idle";
+      const active = state.phase === "running" || state.phase === "paused";
+      $("headline").textContent = headline();
+      $("clock").textContent = format(state.remainingMs);
+      const total = state.plannedMin * 60 * 1000;
+      const progress = idle || state.phase === "done" ? 100 : (state.remainingMs / total) * 100;
+      $("dial").style.setProperty("--p", String(Math.max(0, Math.min(100, progress))));
+      $("mode-focus").setAttribute("aria-selected", String(state.mode === "focus"));
+      $("mode-break").setAttribute("aria-selected", String(state.mode === "break"));
+      $("card").dataset.mode = state.mode;
+      $("label").disabled = active;
+      $("custom-wrap").classList.toggle("hidden", !(state.useCustom && idle));
+      $("finish").classList.toggle("hidden", !active);
+      $("reset").classList.toggle("hidden", !active);
+      $("finish").disabled = state.logging;
+      const primary = $("primary");
+      if (idle) primary.textContent = "Start";
+      else if (state.phase === "running") primary.textContent = "Pause";
+      else if (state.phase === "paused") primary.textContent = "Resume";
+      else primary.textContent = state.mode === "focus" ? "Start break" : "Start focus";
+      renderPresets();
+      document.title = active ? format(state.remainingMs) + " · Focus log" : "Focus log";
+    }
+
+    function applyMinutes(value) {
+      const minutes = Math.max(1, Math.min(180, Math.round(value) || 1));
+      if (state.mode === "focus") state.focusMin = minutes;
+      else state.breakMin = minutes;
+      state.plannedMin = minutes;
+      state.remainingMs = minutes * 60 * 1000;
+      if (!state.useCustom) $("custom").value = minutes;
+      render();
+    }
+
+    function setMode(mode) {
+      if (state.phase === "running" || state.phase === "paused") return;
+      state.mode = mode;
+      state.phase = "idle";
+      state.useCustom = false;
+      state.plannedMin = minutesForMode();
+      state.remainingMs = state.plannedMin * 60 * 1000;
+      setStatus("");
+      render();
+    }
+
+    function tick() {
+      state.remainingMs = state.endsAt - Date.now();
+      if (state.remainingMs <= 0) {
+        state.remainingMs = 0;
+        clearInterval(state.timer);
+        state.timer = null;
+        chime();
+        finish(state.plannedMin);
+        return;
+      }
+      render();
+    }
+    function start() {
+      state.phase = "running";
+      state.endsAt = Date.now() + state.remainingMs;
+      clearInterval(state.timer);
+      state.timer = setInterval(tick, 250);
+      setStatus("");
+      render();
+    }
+    function pause() {
+      clearInterval(state.timer);
+      state.timer = null;
+      state.remainingMs = Math.max(0, state.endsAt - Date.now());
+      state.phase = "paused";
+      render();
+    }
+    function reset() {
+      clearInterval(state.timer);
+      state.timer = null;
+      state.phase = "idle";
+      state.plannedMin = minutesForMode();
+      state.remainingMs = state.plannedMin * 60 * 1000;
+      setStatus("");
+      render();
+    }
+
+    async function finish(minutesOverride) {
+      if (state.logging) return;
+      if (state.phase === "running") {
+        state.remainingMs = Math.max(0, state.endsAt - Date.now());
+      }
+      clearInterval(state.timer);
+      state.timer = null;
+      let minutes = minutesOverride;
+      if (minutes == null) {
+        const spent = state.plannedMin * 60 * 1000 - state.remainingMs;
+        minutes = Math.max(1, Math.round(spent / 60000));
+      }
+      state.logging = true;
+      try {
+        const data = await post("/api/sessions", {
+          mode: state.mode,
+          minutes,
+          label: $("label").value,
+        });
+        showToday(data);
+        state.phase = "done";
+        state.remainingMs = 0;
+        setStatus("Logged: " + data.line);
+      } catch (error) {
+        state.phase = "paused";
+        setStatus(error.message, true);
+      } finally {
+        state.logging = false;
+        render();
+      }
+    }
+
+    function onPrimary() {
+      if (state.phase === "idle") {
+        state.plannedMin = minutesForMode();
+        state.remainingMs = state.plannedMin * 60 * 1000;
+        start();
+        return;
+      }
+      if (state.phase === "running") {
+        pause();
+        return;
+      }
+      if (state.phase === "paused") {
+        start();
+        return;
+      }
+      if (state.mode === "focus") setMode("break");
+      else setMode("focus");
+      state.plannedMin = minutesForMode();
+      state.remainingMs = state.plannedMin * 60 * 1000;
+      start();
+    }
+
+    async function post(url, body) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not save");
+      return data;
+    }
+
+    function showToday(data) {
+      $("today-date").textContent = data.date || "";
+      $("note-path").textContent = data.notePath || "";
+      const list = $("log");
+      list.replaceChildren();
+      const lines = data.lines || [];
+      lines.forEach((line, index) => {
+        const item = document.createElement("li");
+        const text = document.createElement("span");
+        text.textContent = line;
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "del";
+        del.textContent = "\u2715";
+        del.setAttribute("aria-label", "Delete entry");
+        del.addEventListener("click", async () => {
+          if (!confirm("Delete this entry?")) return;
+          try {
+            showToday(await post("/api/sessions/delete", { index }));
+            setStatus("Entry deleted.");
+          } catch (error) {
+            setStatus(error.message, true);
+          }
+        });
+        item.append(text, del);
+        list.appendChild(item);
+      });
+      $("empty").classList.toggle("hidden", lines.length > 0);
+    }
+
+    function chime() {
+      try {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.frequency.value = state.mode === "focus" ? 523 : 392;
+        oscillator.type = "sine";
+        gain.gain.setValueAtTime(0.0001, context.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.05, context.currentTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.45);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start();
+        oscillator.stop(context.currentTime + 0.5);
+      } catch (error) {}
+    }
+
+    $("mode-focus").addEventListener("click", () => setMode("focus"));
+    $("mode-break").addEventListener("click", () => setMode("break"));
+    $("primary").addEventListener("click", onPrimary);
+    $("finish").addEventListener("click", () => finish(null));
+    $("reset").addEventListener("click", reset);
+    $("custom").addEventListener("input", () => {
+      if (state.useCustom) applyMinutes(Number($("custom").value));
+    });
+    $("label").addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && state.phase === "idle") onPrimary();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== " " || event.target.matches("input")) return;
+      if (!$("page-stats").classList.contains("hidden")) return;
+      event.preventDefault();
+      onPrimary();
+    });
+    $("save-config").addEventListener("click", async () => {
+      try {
+        const result = await post("/api/config", {
+          vaultPath: $("vault").value,
+          noteFolder: $("folder").value,
+        });
+        $("config-status").textContent = "Saved.";
+        showToday(result);
+      } catch (error) {
+        $("config-status").textContent = error.message;
+      }
+    });
+
+    async function load() {
+      try {
+        const [config, today] = await Promise.all([fetch("/api/config"), fetch("/api/today")]);
+        const configData = await config.json();
+        const todayData = await today.json();
+        if (!config.ok || !today.ok) {
+          setStatus((todayData && todayData.error) || "Could not read today's note.", true);
+        } else {
+          $("vault").value = configData.vaultPath || "";
+          $("folder").value = configData.noteFolder || "";
+          showToday(todayData);
+        }
+      } catch (error) {
+        setStatus("The timer server is not responding.", true);
+      }
+      render();
+    }
+
+    function fmtDur(min) {
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      if (h === 0) return m + " min";
+      return h + " h " + String(m).padStart(2, "0") + " min";
+    }
+    async function loadStats() {
+      try {
+        const response = await fetch("/api/stats");
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Could not load stats");
+        $("st-all").textContent = fmtDur(data.totalMin);
+        $("st-sub").textContent = data.sessions + " sessions on " + data.dayCount + " days";
+        $("st-today").textContent = fmtDur(data.todayMin);
+        $("st-week").textContent = fmtDur(data.weekMin);
+        const list = $("days");
+        list.replaceChildren();
+        const days = data.days.filter((d) => d.focusMin > 0);
+        const max = Math.max(1, ...days.map((d) => d.focusMin));
+        for (const day of days) {
+          const item = document.createElement("li");
+          const date = document.createElement("span");
+          date.textContent = day.date;
+          const bar = document.createElement("div");
+          bar.className = "bar";
+          const fill = document.createElement("i");
+          fill.style.width = (day.focusMin / max) * 100 + "%";
+          bar.appendChild(fill);
+          const dur = document.createElement("span");
+          dur.className = "dur";
+          dur.textContent = fmtDur(day.focusMin);
+          item.append(date, bar, dur);
+          list.appendChild(item);
+        }
+        $("days-empty").classList.toggle("hidden", days.length > 0);
+      } catch (error) {
+        $("st-sub").textContent = error.message;
+      }
+    }
+    function showPage(name) {
+      const stats = name === "stats";
+      $("page-timer").classList.toggle("hidden", stats);
+      $("page-stats").classList.toggle("hidden", !stats);
+      $("tab-timer").setAttribute("aria-selected", String(!stats));
+      $("tab-stats").setAttribute("aria-selected", String(stats));
+      try { history.replaceState(null, "", stats ? "#stats" : "#timer"); } catch (error) {}
+      if (stats) loadStats();
+    }
+    $("tab-timer").addEventListener("click", () => showPage("timer"));
+    $("tab-stats").addEventListener("click", () => showPage("stats"));
+    if (location.hash === "#stats") showPage("stats");
+    load();
+  </script>
+</body>
+</html>
